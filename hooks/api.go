@@ -38,6 +38,7 @@ func ListenAndServe(hooksRepo Repository, port int) {
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(middleware.AddTrailingSlash())
 
 	hooksGroup := e.Group("/api/hooks")
 	hooksGroup.Use(middleware.KeyAuth(func(key string, c echo.Context) (bool, error) {
@@ -48,16 +49,21 @@ func ListenAndServe(hooksRepo Repository, port int) {
 		var reqHook Hook
 		err := c.Bind(&reqHook)
 		if err != nil {
-			return err
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "owner can't be left blank"})
 		}
 
-		return s.store.CreateHook(reqHook)
+		err = s.store.CreateHook(reqHook)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusOK, reqHook)
 	})
 
 	hooksGroup.GET("/:owner", func(c echo.Context) error {
 		owner := c.Param("owner")
 		if owner == "" {
-			c.JSON(http.StatusBadRequest, map[string]string{"error": "owner can't be left blank"})
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "owner can't be left blank"})
 		}
 
 		hooks, err := s.store.ListHooksForOwner(owner)
@@ -66,6 +72,39 @@ func ListenAndServe(hooksRepo Repository, port int) {
 		}
 
 		return c.JSON(http.StatusOK, hooks)
+	})
+
+	hooksGroup.DELETE("/:owner/:name", func(c echo.Context) error {
+		owner := c.Param("owner")
+		if owner == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "owner can't be left blank"})
+		}
+
+		name := c.Param("name")
+		if name == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "name can't be left blank"})
+		}
+
+		err := s.store.DeleteHookByOwnerAndName(owner, name)
+		if err != nil {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusOK, map[string]string{"msg": fmt.Sprintf("hook: %s deleted for owner: %s", name, owner)})
+	})
+
+	hooksGroup.DELETE("/:owner", func(c echo.Context) error {
+		owner := c.Param("owner")
+		if owner == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "owner can't be left blank"})
+		}
+
+		err := s.store.DeleteHooksForOwner(owner)
+		if err != nil {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusOK, map[string]string{"msg": fmt.Sprintf("hooks deleted for owner: %s", owner)})
 	})
 
 	// Start server

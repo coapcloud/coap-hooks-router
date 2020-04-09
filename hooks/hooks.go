@@ -12,6 +12,9 @@ import (
 type Repository interface {
 	CreateHook(h Hook) error
 	ListHooksForOwner(owner string) ([]*Hook, error)
+	DeleteHooksForOwner(owner string) error
+	DeleteHookByOwnerAndName(owner, name string) error
+	Events() chan HookAPIEvent
 	Cleanup() error
 }
 
@@ -21,8 +24,22 @@ type Hook struct {
 	Destination string `json:"destination"`
 }
 
+type EventType int
+
+const (
+	EventTypePut = iota
+	EventTypeDeleteForOwner
+	EventTypeDelete
+)
+
+type HookAPIEvent struct {
+	EventType EventType
+	Hook      *Hook
+}
+
 type repo struct {
-	db *bolt.DB
+	db     *bolt.DB
+	events chan HookAPIEvent
 }
 
 func NewHooksRepository(dbFilename string) (*repo, error) {
@@ -32,7 +49,8 @@ func NewHooksRepository(dbFilename string) (*repo, error) {
 	}
 
 	return &repo{
-		db: db,
+		db:     db,
+		events: make(chan HookAPIEvent),
 	}, nil
 }
 
@@ -47,6 +65,11 @@ func (r *repo) CreateHook(h Hook) (err error) {
 			e := tx.Commit()
 			if e != nil {
 				log.Printf("error encountered committing tx: %v\n", e)
+			}
+
+			r.events <- HookAPIEvent{
+				EventTypePut,
+				&h,
 			}
 		} else {
 			e := tx.Rollback()
@@ -84,6 +107,95 @@ func (r *repo) CreateHook(h Hook) (err error) {
 	return nil
 }
 
+func (r *repo) DeleteHooksForOwner(owner string) (err error) {
+	tx, err := r.db.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err == nil {
+			e := tx.Commit()
+			if e != nil {
+				log.Printf("error encountered committing tx: %v\n", e)
+			}
+
+			r.events <- HookAPIEvent{
+				EventType: EventTypeDeleteForOwner,
+			}
+		} else {
+			e := tx.Rollback()
+			if e != nil {
+				log.Printf("error encountered rolling back: %v\n", e)
+			}
+		}
+	}()
+
+	err = tx.DeleteBucket([]byte(owner))
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Hooks deleted for owner: %s!\n", owner)
+
+	return nil
+}
+
+func (r *repo) DeleteHookByOwnerAndName(owner, name string) (err error) {
+	tx, err := r.db.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	var h *Hook
+
+	defer func() {
+		if err == nil {
+			e := tx.Commit()
+			if e != nil {
+				log.Printf("error encountered committing tx: %v\n", e)
+			}
+
+			r.events <- HookAPIEvent{
+				EventTypeDelete,
+				h,
+			}
+		} else {
+			e := tx.Rollback()
+			if e != nil {
+				log.Printf("error encountered rolling back: %v\n", e)
+			}
+		}
+	}()
+
+	buck := tx.Bucket([]byte(owner))
+	if buck == nil {
+		return fmt.Errorf("could not find owner: %s", owner)
+	}
+
+	k := []byte(name)
+
+	v := buck.Get(k)
+	if v == nil {
+		return fmt.Errorf("could not find hook: %s to delete for owner: %s", name, owner)
+	}
+
+	h = &Hook{
+		Owner:       owner,
+		Name:        name,
+		Destination: string(v),
+	}
+
+	err = buck.Delete(k)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Hook: %+v deleted!\n", h)
+
+	return nil
+}
+
 func (r *repo) ListHooksForOwner(owner string) ([]*Hook, error) {
 	hooks := make([]*Hook, 0)
 
@@ -109,6 +221,10 @@ func (r *repo) ListHooksForOwner(owner string) ([]*Hook, error) {
 	}
 
 	return hooks, nil
+}
+
+func (r *repo) Events() chan HookAPIEvent {
+	return r.events
 }
 
 func (r *repo) Cleanup() error {
