@@ -60,6 +60,15 @@ func ListenAndServe(hooksRepo Repository, port int) {
 		return c.JSON(http.StatusOK, reqHook)
 	})
 
+	hooksGroup.GET("/", func(c echo.Context) error {
+		hooks, err := s.store.ListAllHooks()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusOK, hooks)
+	})
+
 	hooksGroup.GET("/:owner", func(c echo.Context) error {
 		owner := c.Param("owner")
 		if owner == "" {

@@ -11,6 +11,7 @@ import (
 
 type Repository interface {
 	CreateHook(h Hook) error
+	ListAllHooks() ([]*Hook, error)
 	ListHooksForOwner(owner string) ([]*Hook, error)
 	DeleteHooksForOwner(owner string) error
 	DeleteHookByOwnerAndName(owner, name string) error
@@ -105,6 +106,32 @@ func (r *repo) CreateHook(h Hook) (err error) {
 	log.Printf("Hook: %+v created!\n", h)
 
 	return nil
+}
+
+func (r *repo) ListAllHooks() ([]*Hook, error) {
+	hooks := make([]*Hook, 0)
+
+	err := r.db.View(func(tx *bolt.Tx) error {
+		tx.ForEach(func(name []byte, buck *bolt.Bucket) error {
+			bucketHooks, err := r.ListHooksForOwner(string(name))
+			if err != nil {
+				return err
+			}
+
+			for _, v := range bucketHooks {
+				hooks = append(hooks, v)
+			}
+
+			return nil
+		})
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return hooks, nil
 }
 
 func (r *repo) DeleteHooksForOwner(owner string) (err error) {
