@@ -23,3 +23,7 @@
 
 ### Delete all hooks for an owner
 - `curl -v -X DELETE -H "Content-Type:application/json" -H "Authorization: Bearer $ADMIN_BEARER"  http://localhost:8081/api/hooks/{OWNER_NAME}`
+
+## Making CoAP requests
+
+Only CoAP POST requests are currently supported
