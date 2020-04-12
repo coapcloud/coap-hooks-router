@@ -88,9 +88,9 @@ func (r *routeTable) match(verb codes.Code, path string) (hooks.Hook, bool) {
 	defer r.RUnlock()
 
 	path = strings.TrimLeft(path, "/")
-	fmt.Println(path)
+
 	toks := strings.Split(path, "/")
-	fmt.Println(toks)
+
 	if len(toks) < 2 {
 		log.Printf("couldn't find route from path: %v\n", path)
 		return hooks.Hook{}, false
