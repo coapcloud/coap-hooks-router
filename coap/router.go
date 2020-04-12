@@ -56,20 +56,20 @@ func (r routeTable) ServeCOAP(w coap.ResponseWriter, req *coap.Request) {
 	log.Printf("req: %+v\n", req)
 
 	dest, ok := r.match(req.Msg.Code(), req.Msg.Path())
-	if !ok {
+	if ok {
+		buf := new(bytes.Buffer)
+		buf.Write(req.Msg.Payload())
+
+		respBdy, err = dest.Fire(buf)
+		if err != nil {
+			log.Printf("Error while trying to invoke webhook %v\n", err)
+			w.SetCode(codes.InternalServerError)
+			respBdy = []byte("could not run callback for request")
+		}
+	} else {
 		log.Println("could not match route")
 		w.SetCode(codes.NotFound)
 		respBdy = []byte("not found")
-	}
-
-	buf := new(bytes.Buffer)
-	buf.Write(req.Msg.Payload())
-
-	respBdy, err = dest.Fire(buf)
-	if err != nil {
-		log.Printf("Error while trying to invoke webhook %v\n", err)
-		w.SetCode(codes.InternalServerError)
-		respBdy = []byte("could not run callback for request")
 	}
 
 	ctx, cancel := context.WithTimeout(req.Ctx, 3*time.Second)
