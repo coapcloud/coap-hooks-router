@@ -10,16 +10,16 @@
 ## Using the Hooks API
 
 ### Create a new hook
-- `curl -v -d '{"owner":"{OWNER_NAME}","name":"{HOOK_NAME}","destination":"{HTTPS_ADDRESS}"}' -H "Content-Type:application/json" -H "Authorization: Bearer {BEARER}"  http://localhost:8081/api/hooks/`
+- `curl -v -d '{"owner":"{OWNER_NAME}","name":"{HOOK_NAME}","destination":"{HTTPS_ADDRESS}"}' -H "Content-Type:application/json" -H "Authorization: Bearer $ADMIN_BEARER"  http://localhost:8081/api/hooks/`
 
 ### List all hooks for an owner
-- `curl -v -H "Accept:application/json" -H "Authorization: Bearer {BEARER}"  http://localhost:8081/api/hooks/{OWNER_NAME}`
+- `curl -v -H "Accept:application/json" -H "Authorization: Bearer $ADMIN_BEARER"  http://localhost:8081/api/hooks/{OWNER_NAME}`
 
 ### List all hooks existing in the system
-- `curl -v -H "Accept:application/json" -H "Authorization: Bearer {BEARER}"  http://localhost:8081/api/hooks`
+- `curl -v -H "Accept:application/json" -H "Authorization: Bearer $ADMIN_BEARER"  http://localhost:8081/api/hooks`
 
 ### Delete an existing hook by name
-- `curl -v -X DELETE -H "Content-Type:application/json" -H "Authorization: Bearer {BEARER}"  http://localhost:8081/api/hooks/{OWNER_NAME}/{HOOK_NAME}`
+- `curl -v -X DELETE -H "Content-Type:application/json" -H "Authorization: Bearer $ADMIN_BEARER"  http://localhost:8081/api/hooks/{OWNER_NAME}/{HOOK_NAME}`
 
 ### Delete all hooks for an owner
-- `curl -v -X DELETE -H "Content-Type:application/json" -H "Authorization: Bearer {BEARER}"  http://localhost:8081/api/hooks/{OWNER_NAME}`
+- `curl -v -X DELETE -H "Content-Type:application/json" -H "Authorization: Bearer $ADMIN_BEARER"  http://localhost:8081/api/hooks/{OWNER_NAME}`
