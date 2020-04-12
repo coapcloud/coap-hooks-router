@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/coapcloud/coap-hooks-router/hooks"
-	"github.com/coapcloud/go-coap"
+	"github.com/coapcloud/go-coap/codes"
 	"github.com/derekparker/trie"
 )
 
@@ -57,7 +57,7 @@ func (r *routeTable) HotRemoveRoute(h hooks.Hook) error {
 	return r.deregisterRouteForHook(h)
 }
 
-func routeKey(verb coap.COAPCode, owner, hookName string) string {
+func routeKey(verb codes.Code, owner, hookName string) string {
 	key := fmt.Sprintf("%d-%s/%s", verb, owner, hookName)
 
 	fmt.Printf("route key generated: %s\n", key)
@@ -68,7 +68,7 @@ func (r *routeTable) registerRouteForHook(h hooks.Hook) error {
 	r.Lock()
 	defer r.Unlock()
 
-	verb := coap.POST // this part can later be extended to allow the registration of different verbs
+	verb := codes.POST // this part can later be extended to allow the registration of different verbs
 
 	key := routeKey(verb, h.Owner, h.Name)
 
@@ -85,7 +85,7 @@ func (r *routeTable) deregisterRouteForHook(h hooks.Hook) error {
 	r.Lock()
 	defer r.Unlock()
 
-	verb := coap.POST // this part can later be extended to allow the registration of different verbs
+	verb := codes.POST // this part can later be extended to allow the registration of different verbs
 
 	key := routeKey(verb, h.Owner, h.Name)
 

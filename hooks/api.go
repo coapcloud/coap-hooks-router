@@ -38,14 +38,13 @@ func ListenAndServe(hooksRepo Repository, port int) {
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.AddTrailingSlash())
 
 	hooksGroup := e.Group("/api/hooks")
 	hooksGroup.Use(middleware.KeyAuth(func(key string, c echo.Context) (bool, error) {
 		return subtle.ConstantTimeCompare([]byte(key), config.AdminBearer) == 1, nil
 	}))
 
-	hooksGroup.POST("/", func(c echo.Context) error {
+	hooksGroup.POST("", func(c echo.Context) error {
 		var reqHook Hook
 		err := c.Bind(&reqHook)
 		if err != nil {
@@ -60,7 +59,7 @@ func ListenAndServe(hooksRepo Repository, port int) {
 		return c.JSON(http.StatusOK, reqHook)
 	})
 
-	hooksGroup.GET("/", func(c echo.Context) error {
+	hooksGroup.GET("", func(c echo.Context) error {
 		hooks, err := s.store.ListAllHooks()
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})

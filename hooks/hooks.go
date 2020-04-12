@@ -58,7 +58,7 @@ const (
 
 type HookAPIEvent struct {
 	EventType EventType
-	Hook      *Hook
+	Hooks     []*Hook
 }
 
 type repo struct {
@@ -92,8 +92,8 @@ func (r *repo) CreateHook(h Hook) (err error) {
 			}
 
 			r.events <- HookAPIEvent{
-				EventTypeCreate,
-				&h,
+				EventType: EventTypeCreate,
+				Hooks:     []*Hook{&h},
 			}
 		} else {
 			e := tx.Rollback()
@@ -163,6 +163,8 @@ func (r *repo) DeleteHooksForOwner(owner string) (err error) {
 		return err
 	}
 
+	var hooks []*Hook
+
 	defer func() {
 		if err == nil {
 			e := tx.Commit()
@@ -172,6 +174,7 @@ func (r *repo) DeleteHooksForOwner(owner string) (err error) {
 
 			r.events <- HookAPIEvent{
 				EventType: EventTypeDeleteForOwner,
+				Hooks:     hooks,
 			}
 		} else {
 			e := tx.Rollback()
@@ -180,6 +183,11 @@ func (r *repo) DeleteHooksForOwner(owner string) (err error) {
 			}
 		}
 	}()
+
+	hooks, err = r.ListHooksForOwner(owner)
+	if err != nil {
+		return err
+	}
 
 	err = tx.DeleteBucket([]byte(owner))
 	if err != nil {
@@ -197,7 +205,7 @@ func (r *repo) DeleteHookByOwnerAndName(owner, name string) (err error) {
 		return err
 	}
 
-	var h *Hook
+	var h Hook
 
 	defer func() {
 		if err == nil {
@@ -207,8 +215,8 @@ func (r *repo) DeleteHookByOwnerAndName(owner, name string) (err error) {
 			}
 
 			r.events <- HookAPIEvent{
-				EventTypeDelete,
-				h,
+				EventType: EventTypeDelete,
+				Hooks:     []*Hook{&h},
 			}
 		} else {
 			e := tx.Rollback()
@@ -230,7 +238,7 @@ func (r *repo) DeleteHookByOwnerAndName(owner, name string) (err error) {
 		return fmt.Errorf("could not find hook: %s to delete for owner: %s", name, owner)
 	}
 
-	h = &Hook{
+	h = Hook{
 		Owner:       owner,
 		Name:        name,
 		Destination: string(v),

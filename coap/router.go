@@ -9,6 +9,7 @@ import (
 
 	"github.com/coapcloud/coap-hooks-router/hooks"
 	"github.com/coapcloud/go-coap"
+	"github.com/coapcloud/go-coap/codes"
 )
 
 func ListenAndServe(hooksRepo hooks.Repository, port int) {
@@ -21,18 +22,15 @@ func ListenAndServe(hooksRepo hooks.Repository, port int) {
 	// start listening for hook API events to register and deregister routes
 	go func() {
 		for e := range hooksRepo.Events() {
+			changedHooks := e.Hooks
+
 			switch e.EventType {
 			case hooks.EventTypeCreate:
-				r.HotAddRoute(*e.Hook)
+				r.HotAddRoute(*changedHooks[0])
 			case hooks.EventTypeDelete:
-				r.HotRemoveRoute(*e.Hook)
+				r.HotRemoveRoute(*changedHooks[0])
 			case hooks.EventTypeDeleteForOwner:
-				ownerHooks, err := hooksRepo.ListHooksForOwner(e.Hook.Owner)
-				if err != nil {
-					log.Fatal("couldn't list all hooks")
-				}
-
-				for _, v := range ownerHooks {
+				for _, v := range changedHooks {
 					err := r.HotRemoveRoute(*v)
 					if err != nil {
 						log.Printf("couldn't remove hook: %v with error: %v", *v, err)
@@ -60,7 +58,7 @@ func (r routeTable) ServeCOAP(w coap.ResponseWriter, req *coap.Request) {
 	dest, ok := r.match(req.Msg.Code(), req.Msg.Path())
 	if !ok {
 		log.Println("could not match route")
-		w.SetCode(coap.NotFound)
+		w.SetCode(codes.NotFound)
 		respBdy = []byte("not found")
 	}
 
@@ -70,7 +68,7 @@ func (r routeTable) ServeCOAP(w coap.ResponseWriter, req *coap.Request) {
 	respBdy, err = dest.Fire(buf)
 	if err != nil {
 		log.Printf("Error while trying to invoke webhook %v\n", err)
-		w.SetCode(coap.InternalServerError)
+		w.SetCode(codes.InternalServerError)
 		respBdy = []byte("could not run callback for request")
 	}
 
@@ -84,7 +82,7 @@ func (r routeTable) ServeCOAP(w coap.ResponseWriter, req *coap.Request) {
 	}
 }
 
-func (r *routeTable) match(verb coap.COAPCode, pathComponents []string) (hooks.Hook, bool) {
+func (r *routeTable) match(verb codes.Code, pathComponents []string) (hooks.Hook, bool) {
 	r.RLock()
 	defer r.RUnlock()
 

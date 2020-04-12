@@ -4,7 +4,6 @@ import (
 	"log"
 
 	"github.com/coapcloud/coap-hooks-router/coap"
-	"github.com/coapcloud/coap-hooks-router/config"
 	hooksAPI "github.com/coapcloud/coap-hooks-router/hooks"
 )
 
@@ -14,7 +13,7 @@ const (
 )
 
 func main() {
-	hooksRepo, err := hooksAPI.NewHooksRepository(config.DBFilename)
+	hooksRepo, err := hooksAPI.NewHooksRepository("dbdata/hooks.db")
 	if err != nil {
 		log.Fatalf("Error trying to create HooksRepository: %v\n", err)
 	}

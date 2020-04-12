@@ -1,2 +1,8 @@
-run:
+dev:
 	go run main.go
+
+docker-build:
+	docker build -t coap-hooks-router .
+
+docker-run:
+	docker run -v container-db:/dbdata -e ADMIN_BEARER=${ADMIN_BEARER} -p 8081:8081 -p 5683:5683 coap-hooks-router
