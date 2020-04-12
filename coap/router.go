@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/coapcloud/coap-hooks-router/hooks"
@@ -55,7 +56,7 @@ func (r routeTable) ServeCOAP(w coap.ResponseWriter, req *coap.Request) {
 
 	log.Printf("req: %+v\n", req)
 
-	dest, ok := r.match(req.Msg.Code(), req.Msg.Path())
+	dest, ok := r.match(req.Msg.Code(), req.Msg.PathString())
 	if ok {
 		buf := new(bytes.Buffer)
 		buf.Write(req.Msg.Payload())
@@ -82,16 +83,17 @@ func (r routeTable) ServeCOAP(w coap.ResponseWriter, req *coap.Request) {
 	}
 }
 
-func (r *routeTable) match(verb codes.Code, pathComponents []string) (hooks.Hook, bool) {
+func (r *routeTable) match(verb codes.Code, path string) (hooks.Hook, bool) {
 	r.RLock()
 	defer r.RUnlock()
 
-	if len(pathComponents) < 2 {
-		log.Printf("couldn't find route from path: %v\n", pathComponents)
+	toks := strings.Split(path, "/")
+	if len(toks) < 3 {
+		log.Printf("couldn't find route from path: %v\n", path)
 		return hooks.Hook{}, false
 	}
 
-	key := routeKey(verb, pathComponents[0], pathComponents[1])
+	key := routeKey(verb, toks[1], toks[2])
 
 	node, ok := r.Find(key)
 	if !ok {

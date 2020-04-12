@@ -3,6 +3,7 @@ module github.com/coapcloud/coap-hooks-router
 go 1.13
 
 require (
+	github.com/coapcloud/coap-cli v0.1.1 // indirect
 	github.com/coapcloud/go-coap v0.1.1
 	github.com/derekparker/trie v0.0.0-20200317170641-1fdf38b7b0e9
 	github.com/joho/godotenv v1.3.0
