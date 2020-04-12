@@ -1,4 +1,5 @@
 dev:
+	mkdir -p dbdata
 	go run main.go
 
 docker-build:
