@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -25,10 +28,30 @@ type Hook struct {
 	Destination string `json:"destination"`
 }
 
+func (h Hook) Fire(bdy io.Reader) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodPost, h.Destination, bdy)
+	if err != nil {
+		return nil, err
+	}
+
+	c := http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("received bad status code from webhook destination hook: %d", resp.StatusCode)
+	}
+
+	return ioutil.ReadAll(resp.Body)
+}
+
 type EventType int
 
 const (
-	EventTypePut = iota
+	EventTypeCreate = iota
+	EventTypePut    = iota
 	EventTypeDeleteForOwner
 	EventTypeDelete
 )
@@ -69,7 +92,7 @@ func (r *repo) CreateHook(h Hook) (err error) {
 			}
 
 			r.events <- HookAPIEvent{
-				EventTypePut,
+				EventTypeCreate,
 				&h,
 			}
 		} else {

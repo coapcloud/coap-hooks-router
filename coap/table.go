@@ -2,10 +2,12 @@ package coap
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
 	"github.com/coapcloud/coap-hooks-router/hooks"
+	"github.com/coapcloud/go-coap"
 	"github.com/derekparker/trie"
 )
 
@@ -27,75 +29,74 @@ func registerRoutes(r *routeTable, hooksRepo hooks.Repository) {
 		log.Fatal("couldn't list all hooks")
 	}
 
+	log.Println("Adding persisted routes to the route table...")
+	log.Println()
+
 	for _, v := range allHooks {
-		r.registerRoute(*v)
+		err = r.registerRouteForHook(*v)
+		if err != nil {
+			log.Fatal("error registering route: *v")
+		}
 	}
 }
 
-func (r *routeTable) registerRoute(h hooks.Hook) {
-	key := routeKey(h.Owner, h.Name)
-
-	// log.Printf("registering route: %v %v -> openfaas func: %s\n", verb.String(), path, openfaasFuncID)
-
-	node := r.Add(key, h)
-	if node != nil {
-		// log.Printf("registered route: %s /%s to func %q\n", verb.String(), path, openfaasFuncID)
-	}
+func (r *routeTable) HotAddRoute(h hooks.Hook) error {
+	return r.registerRouteForHook(h)
 }
 
-func (r *routeTable) HotRegisterRoute(h hooks.Hook) {
+func (r *routeTable) HotUpdateRouteDest(h hooks.Hook) error {
+	err := r.deregisterRouteForHook(h)
+	if err != nil {
+		return fmt.Errorf("error encountered while deregistering route: %w", err)
+	}
+
+	return r.registerRouteForHook(h)
+}
+
+func (r *routeTable) HotRemoveRoute(h hooks.Hook) error {
+	return r.deregisterRouteForHook(h)
+}
+
+func routeKey(verb coap.COAPCode, owner, hookName string) string {
+	key := fmt.Sprintf("%d-%s/%s", verb, owner, hookName)
+
+	fmt.Printf("route key generated: %s\n", key)
+	return key
+}
+
+func (r *routeTable) registerRouteForHook(h hooks.Hook) error {
 	r.Lock()
 	defer r.Unlock()
 
-	key := routeKey(h.Owner, h.Name)
+	verb := coap.POST // this part can later be extended to allow the registration of different verbs
 
-	// log.Printf("registering route: %v %v -> openfaas func: %s\n", verb.String(), path, openfaasFuncID)
+	key := routeKey(verb, h.Owner, h.Name)
 
-	node := r.Add(key, h)
-	if node != nil {
-		// log.Printf("registered route: %s /%s to func %q\n", verb.String(), path, openfaasFuncID)
-	}
-}
-
-func (r *routeTable) HotModifyRoute(h hooks.Hook) error {
-	r.Lock()
-	defer r.Unlock()
-
-	key := routeKey(h.Owner, h.Name)
-
-	_, ok := r.Find(key)
-	if !ok {
-		return errors.New("could not find route")
+	if r.Add(key, h) == nil {
+		return errors.New("did not register route, corrupt routing structure")
 	}
 
-	// log.Printf("deregistering route: %v %v -> openfaas func: %s\n", verb.String(), path, openfaasFuncID)
-
-	r.Remove(key)
-
-	// log.Printf("registering route: %v %v -> openfaas func: %s\n", verb.String(), path, openfaasFuncID)
-
-	node := r.Add(key, h)
-	if node != nil {
-		// log.Printf("registered route: %s /%s to func %q\n", verb.String(), path, openfaasFuncID)
-	}
+	log.Printf("added route: %s -> %s\n", key, h.Destination)
 
 	return nil
 }
 
-func (r *routeTable) HotDeRegisterRoute(h hooks.Hook) error {
+func (r *routeTable) deregisterRouteForHook(h hooks.Hook) error {
 	r.Lock()
 	defer r.Unlock()
 
-	key := routeKey(h.Owner, h.Name)
+	verb := coap.POST // this part can later be extended to allow the registration of different verbs
+
+	key := routeKey(verb, h.Owner, h.Name)
 
 	_, ok := r.Find(key)
 	if !ok {
-		return errors.New("could not find route")
+		return errors.New("could not find route for deletion")
 	}
 
-	// log.Printf("deregistering route: %v %v -> openfaas func: %s\n", verb.String(), path)
-
 	r.Remove(key)
+
+	log.Printf("deleted route: %s -> %s\n", key, h.Destination)
 
 	return nil
 }
