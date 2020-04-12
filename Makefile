@@ -2,6 +2,9 @@ dev:
 	mkdir -p dbdata
 	go run main.go
 
+clean:
+	rm -rf ./dbdata
+
 docker-build:
 	docker build -t coap-hooks-router .
 
