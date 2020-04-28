@@ -2,6 +2,9 @@ dev:
 	mkdir -p dbdata
 	go run main.go
 
+build:
+	go build -o server .
+
 tools:
 	go get github.com/coapcloud/coap-cli/cmd@v0.1.1
 	mv ${GOPATH}/bin/cmd ${GOPATH}/bin/coap-cli
